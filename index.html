@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasto Verde Satélite — MVP v2</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F0D;--surface:#141A16;--surface2:#1C2620;--border:#2A3830;--green:#22C55E;--green-dark:#166534;--green-light:#4ADE80;--gold:#D4A843;--red:#EF4444;--orange:#F97316;--yellow:#EAB308;--text:#E8EDE9;--text-dim:#8B9A8F;--text-muted:#5A6B5E;--blue:#0EA5E9}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.header{background:linear-gradient(135deg,var(--surface),#0D1A12);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1000}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--green-dark));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.header h1{font-size:16px;font-weight:700;letter-spacing:-0.02em}
+.header-sub{font-size:10px;color:var(--text-dim);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.1em}
+.btn{border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--green-dark);border-color:var(--green);color:var(--green-light)}.btn-primary:hover{background:var(--green);color:#fff}
+.btn-secondary{background:var(--surface2);color:var(--text-dim)}.btn-secondary:hover{border-color:var(--green);color:var(--text)}
+.btn-gold{background:#2A2210;border-color:var(--gold);color:var(--gold)}.btn-gold:hover{background:var(--gold);color:#000}
+.btn-danger{background:#1A1012;border-color:var(--red);color:var(--red)}
+.btn-blue{background:#0C1A2A;border-color:var(--blue);color:var(--blue)}.btn-blue:hover{background:var(--blue);color:#fff}
+.btn-sm{padding:5px 10px;font-size:11px}.btn:disabled{opacity:0.4;cursor:not-allowed}
+.tab-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;gap:6px;overflow-x:auto}
+.tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-dim);border:1px solid transparent;transition:all 0.2s;white-space:nowrap}
+.tab:hover{color:var(--text);background:var(--surface2)}.tab.active{background:var(--green-dark);border-color:var(--green);color:var(--green-light)}
+.screen{display:none;height:calc(100vh - 92px);overflow-y:auto}.screen.active{display:block}
+.config-section{max-width:600px;margin:0 auto;padding:20px 16px}
+.config-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.config-card h3{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px}
+.form-group input,.form-group select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none}
+.form-group input:focus{border-color:var(--green)}
+.file-drop{border:2px dashed var(--border);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all 0.2s}
+.file-drop:hover,.file-drop.dragover{border-color:var(--green);background:rgba(34,197,94,0.05)}
+.fazenda-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.fazenda-info h4{font-size:13px;font-weight:600}.fazenda-info span{font-size:11px;color:var(--text-dim)}
+.map-container{position:relative;height:100%}
+#map{width:100%;height:100%;background:var(--bg)}
+.map-controls{position:absolute;top:12px;left:12px;z-index:800;display:flex;flex-direction:column;gap:6px}
+.map-controls-right{position:absolute;top:12px;right:12px;z-index:800;display:flex;flex-direction:column;gap:6px}
+.map-info-panel{position:absolute;bottom:0;left:0;right:0;z-index:800;background:var(--surface);border-top:1px solid var(--border);max-height:50%;overflow-y:auto;transition:transform 0.3s}
+.map-info-panel.collapsed{transform:translateY(calc(100% - 44px))}
+.panel-handle{padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.panel-handle h3{font-size:13px;font-weight:700}
+.panel-content{padding:12px 16px}
+.piq-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px}
+.piq-dot{width:10px;height:10px;border-radius:50%}
+.piq-name{font-size:12px;font-weight:600}.piq-detail{font-size:10px;color:var(--text-dim)}
+.piq-ndvi{font-size:16px;font-weight:700;font-family:'Space Mono',monospace}
+.chart-section{padding:16px}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+.chart-box h3{font-size:12px;font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px}
+.chart-box canvas{width:100%!important;height:200px!important}
+.status-bar{padding:10px 16px;font-size:12px;display:flex;align-items:center;gap:8px}
+.status-bar.loading{background:rgba(14,165,233,0.1);color:var(--blue)}.status-bar.success{background:rgba(34,197,94,0.1);color:var(--green-light)}.status-bar.error{background:rgba(239,68,68,0.1);color:var(--red)}
+.spinner{width:14px;height:14px;border:2px solid transparent;border-top-color:currentColor;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.alert-card{border-radius:8px;padding:10px 14px;margin-bottom:6px}
+.alert-card.warn{background:#1A1810;border:1px solid #3D3010}.alert-card.critical{background:#1A1012;border:1px solid #3D1020}
+.alert-title{font-size:12px;font-weight:600;margin-bottom:3px}.alert-card.warn .alert-title{color:var(--orange)}.alert-card.critical .alert-title{color:var(--red)}
+.alert-body{font-size:11px;color:var(--text-dim);line-height:1.5}
+.mode-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.mode-btn{padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-dim);transition:all 0.2s;border:none;background:none;font-family:'DM Sans',sans-serif}
+.mode-btn.active{background:var(--green-dark);color:var(--green-light)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:90%}
+.modal h3{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:16px}
+.calib-option{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;text-align:center}
+.calib-option:hover{border-color:var(--green)}.calib-option.selected{border-color:var(--gold);background:#1F1E16}
+.calib-option .calib-label{font-size:14px;font-weight:600;margin-bottom:2px}.calib-option .calib-desc{font-size:11px;color:var(--text-dim)}
+.leaflet-container{background:var(--bg)!important}
+.leaflet-control-zoom a{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
+.custom-popup .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.custom-popup .leaflet-popup-tip{background:var(--surface);border:1px solid var(--border)}
+.custom-popup .leaflet-popup-content{margin:10px 14px;font-family:'DM Sans',sans-serif}
+@media(min-width:768px){.config-section{max-width:700px;padding:30px 20px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left"><div class="logo">🛰️</div><div><h1>Pasto Verde Satélite</h1><div class="header-sub">MVP v2 · Sentinel-2</div></div></div>
+  <div class="header-right"><div class="mode-toggle" id="modeToggle"><button class="mode-btn active" data-mode="consultor">👨‍🔬 Consultor</button><button class="mode-btn" data-mode="produtor">🐂 Produtor</button></div></div>
+</div>
+<div class="tab-bar">
+  <div class="tab active" data-screen="config">⚙️ Config</div>
+  <div class="tab" data-screen="mapa">🗺️ Mapa</div>
+  <div class="tab" data-screen="historico">📈 Histórico</div>
+  <div class="tab" data-screen="alertas">🔔 Alertas</div>
+</div>
+<div id="statusBar"></div>
+
+<div class="screen active" id="screen-config">
+  <div class="config-section">
+    <div class="config-card"><h3>🔑 Credenciais Sentinel Hub</h3>
+      <div class="form-group"><label>Client ID</label><input type="text" id="clientId" placeholder="Cole seu Client ID"></div>
+      <div class="form-group"><label>Client Secret</label><input type="password" id="clientSecret" placeholder="Cole seu Client Secret"></div>
+      <button class="btn btn-primary" onclick="saveCredentials()">💾 Salvar</button>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-muted)">Dashboard: <a href="https://shapps.dataspace.copernicus.eu/dashboard/" target="_blank" style="color:var(--blue)">shapps.dataspace.copernicus.eu</a> → SPA + Allow all domains</div>
+    </div>
+    <div class="config-card"><h3>🌍 Planet API Key</h3>
+      <div class="form-group"><label>API Key</label><input type="password" id="planetApiKey" placeholder="Cole sua Planet API Key"></div>
+      <button class="btn btn-gold" onclick="savePlanetKey()">💾 Salvar</button>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-muted)">Disponível em: <a href="https://planet.com/account" target="_blank" style="color:var(--blue)">planet.com/account</a></div>
+    </div>
+    <div class="config-card"><h3>🏡 Fazendas</h3><div id="fazendaList"></div><div style="margin-top:12px"><button class="btn btn-gold" onclick="showAddFazenda()">+ Nova Fazenda</button></div></div>
+    <div class="config-card" id="addFazendaCard" style="display:none"><h3>📍 Adicionar Fazenda</h3>
+      <div class="form-group"><label>Nome</label><input type="text" id="fazendaNome" placeholder="Ex: Fazenda Lago Azul"></div>
+      <div class="form-group"><label>KML</label><div class="file-drop" id="kmlDrop"><div style="font-size:32px;margin-bottom:8px">📂</div><div style="font-size:13px;color:var(--text-dim)">Arraste o KML ou clique</div></div><input type="file" id="kmlInput" accept=".kml" style="display:none"></div>
+      <div id="kmlPreview" style="display:none"><div style="font-size:11px;color:var(--green-light);margin-bottom:8px" id="kmlStatus"></div></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="addFazenda()">✅ Adicionar</button><button class="btn btn-secondary" onclick="cancelAddFazenda()">Cancelar</button></div>
+    </div>
+    <div class="config-card"><h3>🎯 Calibração</h3><div style="font-size:12px;color:var(--text-dim);line-height:1.7">Na aba Mapa, cada piquete tem um botão <b>🎯 Calibrar</b>. Informe o estado real do pasto e o app ajusta os limiares de NDVI para aquela fazenda.</div><div id="calibInfo" style="margin-top:12px"></div></div>
+    <div class="config-card"><h3>ℹ️ Novidades v2</h3><div style="font-size:12px;color:var(--text-dim);line-height:1.7">📸 <b>Foto Satélite</b> — imagem real RGB sobreposta no mapa<br>⬇️ <b>Download GeoTIFF</b> — NDVI e RGB georreferenciados<br>🎯 <b>Calibração</b> — ajuste os limiares com seu olho de campo<br>👁️ <b>Ocultar/mostrar</b> foto de satélite no mapa</div></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-mapa">
+  <div class="map-container">
+    <div id="map"></div>
+    <div class="map-controls">
+      <select id="fazendaSelect" class="btn btn-secondary" style="min-width:160px" onchange="onFazendaChange()"><option value="">Selecione a fazenda</option></select>
+      <button class="btn btn-primary" id="btnUpdate" onclick="fetchSatelliteData()" disabled>🛰️ Atualizar Satélite</button>
+      <button class="btn btn-blue" id="btnPhoto" onclick="fetchSatellitePhoto()" disabled>📸 Foto</button>
+      <select id="photoTypeSelect" class="btn btn-secondary" style="font-size:11px;padding:5px 8px">
+        <option value="falsa_cor">🌿 Falsa cor</option>
+        <option value="ndvi_color">🎨 NDVI cor</option>
+        <option value="rgb_enhanced">📷 RGB</option>
+      </select>
+      <div class="mode-toggle" style="margin-top:4px"><button class="mode-btn active layer-btn" data-layer="ndvi">🌿 NDVI</button><button class="mode-btn layer-btn" data-layer="ndmi">💧 NDMI</button></div>
+      <div style="margin-top:4px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-gold btn-sm" id="btnPlanet" onclick="loadPlanetLayer()" style="font-size:11px">🌍 Planet</button>
+        <select id="planetMosaicSelect" class="btn btn-secondary" style="font-size:10px;padding:4px 6px;min-width:120px">
+          <option value="">Carregando...</option>
+        </select>
+        <button class="btn btn-danger btn-sm" id="btnRemovePlanet" onclick="removePlanetLayer()" style="display:none;font-size:11px">✕ Planet</button>
+      </div>
+    </div>
+    <div class="map-controls-right">
+      <button class="btn btn-secondary btn-sm" id="btnDlNdvi" onclick="downloadGeoTIFF('ndvi')" disabled>⬇️ NDVI TIFF</button>
+      <button class="btn btn-secondary btn-sm" id="btnDlRgb" onclick="downloadGeoTIFF('rgb')" disabled>⬇️ RGB TIFF</button>
+      <button class="btn btn-secondary btn-sm" id="btnTogglePhoto" onclick="togglePhotoLayer()" style="display:none">👁️ Ocultar foto</button>
+    </div>
+    <div class="map-info-panel" id="infoPanel"><div class="panel-handle" onclick="togglePanel()"><h3 id="panelTitle">Piquetes</h3><span id="panelArrow">▲</span></div><div class="panel-content" id="panelContent"><div style="font-size:12px;color:var(--text-dim)">Selecione uma fazenda e atualize.</div></div></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-historico">
+  <div class="chart-section"><div style="margin-bottom:12px"><select id="histFazendaSelect" class="btn btn-secondary" style="min-width:200px" onchange="renderHistory()"><option value="">Selecione a fazenda</option></select></div>
+    <div class="chart-box"><h3>Evolução NDVI — Média da fazenda</h3><canvas id="histChart"></canvas></div>
+    <div class="chart-box"><h3>NDVI por piquete — Última leitura</h3><canvas id="barChart"></canvas></div><div id="histTable"></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-alertas"><div class="chart-section"><div id="alertList"><div style="font-size:12px;color:var(--text-dim);padding:20px;text-align:center">Atualize o satélite primeiro.</div></div></div></div>
+
+<div class="modal-overlay" id="calibModal">
+  <div class="modal"><h3>🎯 Calibrar: <span id="calibPiqName"></span></h3>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">NDVI atual: <span id="calibNdviVal" style="font-family:'Space Mono';font-weight:700"></span></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Como está o pasto <b>realmente</b>?</div>
+    <div id="calibOptions"></div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" onclick="applyCalibration()">✅ Salvar</button><button class="btn btn-secondary" onclick="closeCalibModal()">Cancelar</button></div>
+  </div>
+</div>
+
+<script>
+let DB=loadDB(),map,tileLayer,polygonLayers=[],markerLayers=[],photoOverlay=null,currentLayer='ndvi',currentMode='consultor';
+let parsedKML=null,accessToken=null,tokenExpiry=0,histChart=null,barChart=null,lastResults=null,lastFazId=null;
+let calibPiqId=null,calibSelectedState=null,photoVisible=true;
+const SH_TOKEN_URL='https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token';
+const SH_BASE='https://sh.dataspace.copernicus.eu',SH_STATS_URL=SH_BASE+'/api/v1/statistics',SH_PROCESS_URL=SH_BASE+'/api/v1/process';
+const CALIB_STATES=[{key:'excelente',label:'🟢 Pasto cheio',desc:'Capim alto, denso, verde intenso'},{key:'bom',label:'🟢 Pasto bom',desc:'Boa cobertura e vigor'},{key:'razoavel',label:'🟡 Razoável',desc:'Capim presente mas sem muito vigor'},{key:'fraco',label:'🟡 Fraco',desc:'Capim baixo, ralo'},{key:'rapado',label:'🔴 Rapado',desc:'Muito pouco capim, solo aparecendo'},{key:'morto',label:'🔴 Morto/Degradado',desc:'Sem capim, solo exposto'}];
+
+function loadDB(){try{const d=JSON.parse(localStorage.getItem('pvsat_db'));if(d){if(!d.calibrations)d.calibrations={};return d}return{credentials:{},fazendas:{},history:{},calibrations:{}}}catch{return{credentials:{},fazendas:{},history:{},calibrations:{}}}}
+function saveDB(){localStorage.setItem('pvsat_db',JSON.stringify(DB))}
+
+function getCalibThresholds(fazId){const c=DB.calibrations[fazId];if(!c||c.points.length<2)return{excelente:0.75,bom:0.65,razoavel:0.55,fraco:0.45,rapado:0.35};const so=['morto','rapado','fraco','razoavel','bom','excelente'],sn={};c.points.forEach(p=>{if(!sn[p.state])sn[p.state]=[];sn[p.state].push(p.ndvi)});const a={};for(const s of so)if(sn[s])a[s]=sn[s].reduce((x,y)=>x+y,0)/sn[s].length;const t={excelente:0.75,bom:0.65,razoavel:0.55,fraco:0.45,rapado:0.35};const pairs=[['rapado','fraco'],['fraco','razoavel'],['razoavel','bom'],['bom','excelente']];for(const[l,h]of pairs){if(a[l]!==undefined&&a[h]!==undefined)t[h]=(a[l]+a[h])/2;else if(a[h]!==undefined)t[h]=a[h]-0.05;else if(a[l]!==undefined)t[l]=a[l]+0.05}if(a.morto!==undefined&&a.rapado!==undefined)t.rapado=(a.morto+a.rapado)/2;return t}
+
+function openCalibModal(pid){const fid=document.getElementById('fazendaSelect').value;if(!fid||!lastResults)return;const p=lastResults.find(r=>r.id===pid);if(!p)return;calibPiqId=pid;calibSelectedState=null;document.getElementById('calibPiqName').textContent=p.name;document.getElementById('calibNdviVal').textContent=p.ndvi!==null?p.ndvi.toFixed(3):'N/A';document.getElementById('calibNdviVal').style.color=ndviColor(p.ndvi,fid);document.getElementById('calibOptions').innerHTML=CALIB_STATES.map(s=>`<div class="calib-option" data-state="${s.key}" onclick="selectCalibState('${s.key}')"><div class="calib-label">${s.label}</div><div class="calib-desc">${s.desc}</div></div>`).join('');document.getElementById('calibModal').classList.add('active')}
+function selectCalibState(s){calibSelectedState=s;document.querySelectorAll('.calib-option').forEach(e=>e.classList.toggle('selected',e.dataset.state===s))}
+function applyCalibration(){if(!calibSelectedState||!calibPiqId)return;const fid=document.getElementById('fazendaSelect').value;const p=lastResults.find(r=>r.id===calibPiqId);if(!p||p.ndvi===null){closeCalibModal();return}if(!DB.calibrations[fid])DB.calibrations[fid]={points:[]};DB.calibrations[fid].points=DB.calibrations[fid].points.filter(x=>x.piqId!==calibPiqId);DB.calibrations[fid].points.push({piqId:calibPiqId,state:calibSelectedState,ndvi:p.ndvi,date:new Date().toISOString()});saveDB();closeCalibModal();showStatus(`Calibração: ${p.name} = ${calibSelectedState}`,'success');if(lastResults){const faz=DB.fazendas[fid];renderMapData(faz,lastResults);renderPanelContent(lastResults);renderAlerts(faz.name,lastResults)}renderCalibInfo()}
+function closeCalibModal(){document.getElementById('calibModal').classList.remove('active');calibPiqId=null;calibSelectedState=null}
+function renderCalibInfo(){const el=document.getElementById('calibInfo');const fs=Object.values(DB.fazendas);if(fs.length===0){el.innerHTML='';return}el.innerHTML=fs.map(f=>{const c=DB.calibrations[f.id],n=c?c.points.length:0,t=getCalibThresholds(f.id);return`<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;padding:8px;background:var(--surface2);border-radius:6px"><b style="color:var(--text)">${f.name}</b> — ${n} calibração(ões)<br><span style="font-family:'Space Mono';font-size:10px">cheio≥${t.excelente.toFixed(2)} bom≥${t.bom.toFixed(2)} razoável≥${t.razoavel.toFixed(2)} fraco≥${t.fraco.toFixed(2)} rapado≥${t.rapado.toFixed(2)}</span></div>`}).join('')}
+
+function ndviColor(v,fid){if(v===null)return'#555';const t=fid?getCalibThresholds(fid):{excelente:.75,bom:.65,razoavel:.55,fraco:.45,rapado:.35};if(v>=t.excelente)return'#15803D';if(v>=t.bom)return'#22C55E';if(v>=t.razoavel)return'#84CC16';if(v>=t.fraco)return'#EAB308';if(v>=t.rapado)return'#F97316';return'#DC2626'}
+function ndviDiag(v,m,fid){if(v===null)return m==='produtor'?'Sem dado':'N/A';const t=fid?getCalibThresholds(fid):{excelente:.75,bom:.65,razoavel:.55,fraco:.45,rapado:.35};if(m==='produtor'){if(v>=t.excelente)return'🟢 Pasto cheio';if(v>=t.bom)return'🟢 Pasto bom';if(v>=t.razoavel)return'🟡 Pasto razoável';if(v>=t.fraco)return'🟡 Pasto fraco';if(v>=t.rapado)return'🔴 Pasto rapado';return'🔴 Pasto morto'}if(v>=t.excelente)return'Excelente';if(v>=t.bom)return'Bom';if(v>=t.razoavel)return'Regular';if(v>=t.fraco)return'Atenção';if(v>=t.rapado)return'Crítico';return'Degradado'}
+function ndmiDiag(v,m){if(v===null)return m==='produtor'?'Sem dado':'N/A';if(m==='produtor')return v>=.3?'💧 Capim com água':v>=.15?'💧 Umidade ok':'🏜️ Capim seco';return v>=.3?'Alto':v>=.15?'Médio':'Baixo'}
+
+function saveCredentials(){const i=document.getElementById('clientId').value.trim(),s=document.getElementById('clientSecret').value.trim();if(!i||!s){showStatus('Preencha Client ID e Secret','error');return}DB.credentials={clientId:i,clientSecret:s};saveDB();showStatus('Credenciais salvas!','success');accessToken=null;tokenExpiry=0}
+function loadCredentials(){if(DB.credentials.clientId)document.getElementById('clientId').value=DB.credentials.clientId;if(DB.credentials.clientSecret)document.getElementById('clientSecret').value='••••••••••••'}
+
+async function getToken(){if(accessToken&&Date.now()<tokenExpiry-60000)return accessToken;const{clientId,clientSecret}=DB.credentials;if(!clientId||!clientSecret)throw new Error('Credenciais não configuradas');const body=new URLSearchParams({grant_type:'client_credentials',client_id:clientId,client_secret:clientSecret});const res=await fetch(SH_TOKEN_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});if(!res.ok)throw new Error('Falha na autenticação');const data=await res.json();accessToken=data.access_token;tokenExpiry=Date.now()+(data.expires_in*1000);return accessToken}
+
+function parseKML(text){const doc=new DOMParser().parseFromString(text,'text/xml');const pms=doc.querySelectorAll('Placemark');const pqs=[];pms.forEach((pm,idx)=>{const ne=pm.querySelector('name');const n=ne?ne.textContent.trim():`Piquete ${idx+1}`;const ce=pm.querySelector('coordinates');if(!ce)return;const coords=ce.textContent.trim().split(/\s+/).map(c=>{const p=c.split(',');return p.length>=2?[parseFloat(p[1]),parseFloat(p[0])]:null}).filter(c=>c&&!isNaN(c[0])&&!isNaN(c[1]));if(coords.length>=3)pqs.push({id:'P'+String(idx+1).padStart(2,'0'),name:n,coords,area_ha:Math.round(approxAreaHa(coords)*10)/10})});return pqs}
+function approxAreaHa(c){let a=0;const n=c.length;for(let i=0;i<n;i++){const j=(i+1)%n;const xi=c[i][1]*111320*Math.cos(c[i][0]*Math.PI/180),yi=c[i][0]*110540;const xj=c[j][1]*111320*Math.cos(c[j][0]*Math.PI/180),yj=c[j][0]*110540;a+=xi*yj-xj*yi}return Math.abs(a/2)/10000}
+function coordsToGeoJSON(c){const r=c.map(x=>[x[1],x[0]]);if(r[0][0]!==r[r.length-1][0]||r[0][1]!==r[r.length-1][1])r.push([...r[0]]);return{type:'Polygon',coordinates:[r]}}
+function getBBoxAll(faz){let a=90,b=-90,c=180,d=-180;faz.piquetes.forEach(p=>p.coords.forEach(x=>{if(x[0]<a)a=x[0];if(x[0]>b)b=x[0];if(x[1]<c)c=x[1];if(x[1]>d)d=x[1]}));return[c,a,d,b]}
+
+function setupKMLDrop(){const dr=document.getElementById('kmlDrop'),inp=document.getElementById('kmlInput');dr.addEventListener('click',()=>inp.click());dr.addEventListener('dragover',e=>{e.preventDefault();dr.classList.add('dragover')});dr.addEventListener('dragleave',()=>dr.classList.remove('dragover'));dr.addEventListener('drop',e=>{e.preventDefault();dr.classList.remove('dragover');if(e.dataTransfer.files.length)handleKMLFile(e.dataTransfer.files[0])});inp.addEventListener('change',()=>{if(inp.files.length)handleKMLFile(inp.files[0])})}
+function handleKMLFile(f){const r=new FileReader();r.onload=e=>{try{parsedKML=parseKML(e.target.result);if(parsedKML.length===0){showStatus('Nenhum polígono no KML','error');return}document.getElementById('kmlPreview').style.display='block';document.getElementById('kmlStatus').textContent=`✓ ${parsedKML.length} piquetes — ${parsedKML.reduce((s,p)=>s+p.area_ha,0).toFixed(1)} ha`}catch(err){showStatus('Erro KML: '+err.message,'error')}};r.readAsText(f)}
+
+function showAddFazenda(){document.getElementById('addFazendaCard').style.display='block';parsedKML=null;document.getElementById('fazendaNome').value='';document.getElementById('kmlPreview').style.display='none'}
+function cancelAddFazenda(){document.getElementById('addFazendaCard').style.display='none';parsedKML=null}
+function addFazenda(){const n=document.getElementById('fazendaNome').value.trim();if(!n){showStatus('Nome da fazenda','error');return}if(!parsedKML||!parsedKML.length){showStatus('Importe o KML','error');return}const id='faz_'+Date.now();DB.fazendas[id]={id,name:n,piquetes:parsedKML,created:Date.now()};if(!DB.history[id])DB.history[id]=[];saveDB();cancelAddFazenda();renderFazendaList();updateFazendaSelects();showStatus(`${n} adicionada!`,'success')}
+function removeFazenda(id){if(!confirm('Remover fazenda e histórico?'))return;delete DB.fazendas[id];delete DB.history[id];delete DB.calibrations[id];saveDB();renderFazendaList();updateFazendaSelects()}
+function renderFazendaList(){const l=document.getElementById('fazendaList'),fs=Object.values(DB.fazendas);if(!fs.length){l.innerHTML='<div style="font-size:12px;color:var(--text-dim)">Nenhuma fazenda</div>';return}l.innerHTML=fs.map(f=>{const a=f.piquetes.reduce((s,p)=>s+p.area_ha,0).toFixed(1),h=(DB.history[f.id]||[]).length,c=DB.calibrations[f.id]?DB.calibrations[f.id].points.length:0;return`<div class="fazenda-item"><div class="fazenda-info"><h4>${f.name}</h4><span>${f.piquetes.length} piq · ${a} ha · ${h} leituras · ${c} calib</span></div><div><button class="btn btn-danger btn-sm" onclick="removeFazenda('${f.id}')">🗑️</button></div></div>`}).join('')}
+function updateFazendaSelects(){const fs=Object.values(DB.fazendas),o=fs.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');document.getElementById('fazendaSelect').innerHTML='<option value="">Selecione a fazenda</option>'+o;document.getElementById('histFazendaSelect').innerHTML='<option value="">Selecione a fazenda</option>'+o}
+
+async function fetchSatelliteData(){const fid=document.getElementById('fazendaSelect').value;if(!fid){showStatus('Selecione uma fazenda','error');return}const faz=DB.fazendas[fid];if(!faz)return;const btn=document.getElementById('btnUpdate');btn.disabled=true;btn.textContent='⏳ Consultando...';showStatus('Obtendo token...','loading');try{const token=await getToken();const today=new Date(),ago=new Date(today);ago.setDate(ago.getDate()-30);const df=ago.toISOString().split('T')[0],dt=today.toISOString().split('T')[0];const results=[];for(let i=0;i<faz.piquetes.length;i++){const piq=faz.piquetes[i];showStatus(`${piq.name} (${i+1}/${faz.piquetes.length})...`,'loading');const gj=coordsToGeoJSON(piq.coords);const body={input:{bounds:{geometry:gj},data:[{type:"sentinel-2-l2a",dataFilter:{mosaickingOrder:"leastCC",maxCloudCoverage:50}}]},aggregation:{timeRange:{from:df+'T00:00:00Z',to:dt+'T23:59:59Z'},aggregationInterval:{of:'P5D'},evalscript:'//VERSION=3\nfunction setup(){return{input:[{bands:["B04","B08","B8A","B11","dataMask"]}],output:[{id:"ndvi",bands:1,sampleType:"FLOAT32"},{id:"ndmi",bands:1,sampleType:"FLOAT32"},{id:"dataMask",bands:1}]};}\nfunction evaluatePixel(s){let ndvi=(s.B08-s.B04)/(s.B08+s.B04);let ndmi=(s.B8A-s.B11)/(s.B8A+s.B11);return{ndvi:[ndvi],ndmi:[ndmi],dataMask:[s.dataMask]};}',width:64,height:64},calculations:{default:{}}};try{const res=await fetch(SH_STATS_URL,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!res.ok){results.push({...piq,ndvi:null,ndmi:null,error:true,timeseries:[]});continue}const data=await res.json();const intervals=data.data||[];const ts=[];let ln=null,lm=null;intervals.forEach(iv=>{const ns=iv.outputs?.ndvi?.bands?.B0?.stats,ms=iv.outputs?.ndmi?.bands?.B0?.stats;if(ns&&ns.sampleCount>0&&ns.mean!==undefined){const e={date:iv.interval.from.split('T')[0],ndvi:Math.round(ns.mean*1000)/1000,ndmi:ms?Math.round(ms.mean*1000)/1000:null};ts.push(e);ln=e.ndvi;lm=e.ndmi}});results.push({...piq,ndvi:ln,ndmi:lm,error:false,timeseries:ts})}catch{results.push({...piq,ndvi:null,ndmi:null,error:true,timeseries:[]})}if(i<faz.piquetes.length-1)await new Promise(r=>setTimeout(r,300))}const reading={date:new Date().toISOString(),piquetes:results.map(r=>({id:r.id,name:r.name,ndvi:r.ndvi,ndmi:r.ndmi,timeseries:r.timeseries,error:r.error}))};if(!DB.history[fid])DB.history[fid]=[];DB.history[fid].push(reading);saveDB();lastResults=results;lastFazId=fid;renderMapData(faz,results);renderPanelContent(results);renderAlerts(faz.name,results);document.getElementById('btnDlNdvi').disabled=false;document.getElementById('btnDlRgb').disabled=false;showStatus(`✅ ${results.filter(r=>!r.error).length}/${results.length} atualizados!`,'success')}catch(err){showStatus('Erro: '+err.message,'error')}finally{btn.disabled=false;btn.textContent='🛰️ Atualizar Satélite'}}
+
+async function fetchSatellitePhoto(photoType){
+  photoType = photoType || document.getElementById('photoTypeSelect')?.value || 'falsa_cor';
+  const fid=document.getElementById('fazendaSelect').value;if(!fid)return;
+  const faz=DB.fazendas[fid];if(!faz)return;
+  const btn=document.getElementById('btnPhoto');
+  btn.disabled=true;btn.textContent='⏳ Carregando...';
+  showStatus('Baixando imagem de satélite...','loading');
+  try{
+    const token=await getToken();
+    const bbox=getBBoxAll(faz);
+    const pad=0.001;
+    const pb=[bbox[0]-pad,bbox[1]-pad,bbox[2]+pad,bbox[3]+pad];
+    const w=Math.min(Math.round((pb[2]-pb[0])*111320*Math.cos((pb[1]+pb[3])/2*Math.PI/180)/10),2500);
+    const h=Math.min(Math.round((pb[3]-pb[1])*110540/10),2500);
+    const today=new Date(),ago=new Date(today);ago.setDate(ago.getDate()-60);
+
+    const evalscripts = {
+      falsa_cor: `//VERSION=3
+function setup(){return{input:["B08","B04","B03","dataMask"],output:{bands:4}}}
+function evaluatePixel(s){
+  let r=Math.min(1,s.B08*3.5),g=Math.min(1,s.B04*3.5),b=Math.min(1,s.B03*3.5);
+  return[r,g,b,s.dataMask];
+}`,
+      ndvi_color: `//VERSION=3
+function setup(){return{input:["B08","B04","dataMask"],output:{bands:4}}}
+function evaluatePixel(s){
+  if(!s.dataMask)return[0,0,0,0];
+  let ndvi=(s.B08-s.B04)/(s.B08+s.B04);
+  if(ndvi>=0.75)return[0.08,0.5,0.13,1];
+  if(ndvi>=0.65)return[0.13,0.76,0.37,1];
+  if(ndvi>=0.55)return[0.52,0.8,0.13,1];
+  if(ndvi>=0.45)return[0.91,0.8,0.1,1];
+  if(ndvi>=0.35)return[0.97,0.5,0.1,1];
+  return[0.87,0.2,0.2,1];
+}`,
+      rgb_enhanced: `//VERSION=3
+function setup(){return{input:["B04","B03","B02","dataMask"],output:{bands:4}}}
+function evaluatePixel(s){
+  let r=Math.pow(Math.min(1,s.B04*4),0.7);
+  let g=Math.pow(Math.min(1,s.B03*4),0.7);
+  let b=Math.pow(Math.min(1,s.B02*4),0.7);
+  return[r,g,b,s.dataMask];
+}`
+    };
+
+    const body={
+      input:{
+        bounds:{
+          bbox: pb,
+          properties:{crs:"http://www.opengis.net/def/crs/EPSG/0/4326"}
+        },
+        data:[{type:"sentinel-2-l2a",dataFilter:{timeRange:{from:ago.toISOString(),to:today.toISOString()},mosaickingOrder:"leastCC",maxCloudCoverage:30}}]
+      },
+      output:{width:w,height:h,responses:[{identifier:"default",format:{type:"image/png"}}]},
+      evalscript: evalscripts[photoType] || evalscripts.falsa_cor
+    };
+
+    const res=await fetch(SH_PROCESS_URL,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','Accept':'image/png'},body:JSON.stringify(body)});
+    if(!res.ok)throw new Error(await res.text());
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    if(photoOverlay){map.removeLayer(photoOverlay);photoOverlay=null}
+    const bounds=L.latLngBounds([[pb[1],pb[0]],[pb[3],pb[2]]]);
+    photoOverlay=L.imageOverlay(url,bounds,{opacity:1,zIndex:500}).addTo(map);
+    polygonLayers.forEach(p=>p.bringToFront());
+    markerLayers.forEach(m=>m._icon&&(m._icon.style.zIndex=1000));
+    photoVisible=true;
+    document.getElementById('btnTogglePhoto').style.display='flex';
+    document.getElementById('btnTogglePhoto').textContent='👁️ Ocultar foto';
+    const labels={falsa_cor:'Falsa cor (NIR)',ndvi_color:'NDVI colorido',rgb_enhanced:'RGB realçado'};
+    showStatus(`📸 ${labels[photoType]||'Foto'} carregada!`,'success');
+  }catch(err){showStatus('Erro: '+err.message,'error')}
+  finally{btn.disabled=false;btn.textContent='📸 Foto'}
+}
+
+function togglePhotoLayer(){if(!photoOverlay)return;photoVisible=!photoVisible;if(photoVisible){photoOverlay.addTo(map);polygonLayers.forEach(p=>p.bringToFront())}else{map.removeLayer(photoOverlay)}document.getElementById('btnTogglePhoto').textContent=photoVisible?'👁️ Ocultar foto':'👁️ Mostrar foto'}
+
+async function downloadGeoTIFF(type){const fid=document.getElementById('fazendaSelect').value;if(!fid)return;const faz=DB.fazendas[fid];if(!faz)return;const bid=type==='ndvi'?'btnDlNdvi':'btnDlRgb';const btn=document.getElementById(bid);btn.disabled=true;btn.textContent='⏳...';showStatus(`Gerando GeoTIFF ${type.toUpperCase()}...`,'loading');try{const token=await getToken();const bbox=getBBoxAll(faz);const pad=0.002;const pb=[bbox[0]-pad,bbox[1]-pad,bbox[2]+pad,bbox[3]+pad];const w=Math.min(Math.round((pb[2]-pb[0])*111320*Math.cos((pb[1]+pb[3])/2*Math.PI/180)/10),2500);const h=Math.min(Math.round((pb[3]-pb[1])*110540/10),2500);const today=new Date(),ago=new Date(today);ago.setDate(ago.getDate()-30);const es=type==='ndvi'?'//VERSION=3\nfunction setup(){return{input:["B04","B08","dataMask"],output:{bands:1,sampleType:"FLOAT32"}};}\nfunction evaluatePixel(s){if(!s.dataMask)return[-9999];return[(s.B08-s.B04)/(s.B08+s.B04)];}':'//VERSION=3\nfunction setup(){return{input:["B04","B03","B02","dataMask"],output:{bands:3,sampleType:"UINT8"}};}\nfunction evaluatePixel(s){return[255*2.5*s.B04,255*2.5*s.B03,255*2.5*s.B02].map(v=>Math.min(255,Math.max(0,Math.round(v))));}';const body={input:{bounds:{bbox:pb,properties:{crs:"http://www.opengis.net/def/crs/EPSG/0/4326"}},data:[{type:"sentinel-2-l2a",dataFilter:{timeRange:{from:ago.toISOString(),to:today.toISOString()},mosaickingOrder:"leastCC",maxCloudCoverage:30}}]},output:{width:w,height:h,responses:[{identifier:"default",format:{type:"image/tiff"}}]},evalscript:es};const res=await fetch(SH_PROCESS_URL,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','Accept':'image/tiff'},body:JSON.stringify(body)});if(!res.ok)throw new Error(await res.text());const blob=await res.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${faz.name.replace(/\s+/g,'_')}_${type.toUpperCase()}_${new Date().toISOString().split('T')[0]}.tiff`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showStatus(`✅ GeoTIFF ${type.toUpperCase()} baixado!`,'success')}catch(err){showStatus('Erro: '+err.message,'error')}finally{btn.disabled=false;btn.textContent=type==='ndvi'?'⬇️ NDVI TIFF':'⬇️ RGB TIFF'}}
+
+function initMap(){map=L.map('map',{center:[-13,-41],zoom:8,zoomControl:true,attributionControl:false});tileLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(map)}
+
+function onFazendaChange(){const fid=document.getElementById('fazendaSelect').value;document.getElementById('btnUpdate').disabled=!fid;document.getElementById('btnPhoto').disabled=!fid;if(!fid)return;const faz=DB.fazendas[fid];if(!faz)return;if(photoOverlay){map.removeLayer(photoOverlay);photoOverlay=null}document.getElementById('btnTogglePhoto').style.display='none';clearMap();const bounds=[];faz.piquetes.forEach(piq=>{const poly=L.polygon(piq.coords,{color:'rgba(255,255,255,0.5)',weight:1.5,fillColor:'#555',fillOpacity:0.3}).addTo(map);const ctr=poly.getBounds().getCenter();const m=L.marker(ctr,{icon:L.divIcon({className:'',html:`<div style="font:700 11px 'Space Mono';color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.8);text-align:center">${piq.id}</div>`,iconSize:[40,20],iconAnchor:[20,10]}),interactive:false}).addTo(map);polygonLayers.push(poly);markerLayers.push(m);bounds.push(...piq.coords)});if(bounds.length)map.fitBounds(L.latLngBounds(bounds.map(c=>L.latLng(c[0],c[1]))),{padding:[30,30]});const hist=DB.history[fid]||[];if(hist.length>0){const lr=hist[hist.length-1];const results=faz.piquetes.map(piq=>{const pd=lr.piquetes.find(p=>p.id===piq.id);return{...piq,ndvi:pd?.ndvi||null,ndmi:pd?.ndmi||null,error:!pd,timeseries:pd?.timeseries||[]}});lastResults=results;lastFazId=fid;renderMapData(faz,results);renderPanelContent(results);renderAlerts(faz.name,results);document.getElementById('btnDlNdvi').disabled=false;document.getElementById('btnDlRgb').disabled=false}else{lastResults=null;document.getElementById('panelContent').innerHTML='<div style="font-size:12px;color:var(--text-dim)">Clique em 🛰️ Atualizar Satélite</div>';document.getElementById('btnDlNdvi').disabled=true;document.getElementById('btnDlRgb').disabled=true}}
+
+function renderMapData(faz,results){clearMap();const bounds=[],fid=faz.id;results.forEach(r=>{const val=currentLayer==='ndvi'?r.ndvi:r.ndmi;const color=currentLayer==='ndvi'?ndviColor(val,fid):(val===null?'#555':val>=.3?'#0EA5E9':val>=.15?'#38BDF8':'#F97316');const poly=L.polygon(r.coords,{color:'rgba(255,255,255,0.4)',weight:1.5,fillColor:color,fillOpacity:0.6}).addTo(map);poly.piqueteId=r.id;const popup=currentMode==='produtor'?`<div style="font:700 14px 'DM Sans';margin-bottom:8px">${r.name}</div><div style="font-size:20px;margin-bottom:6px">${ndviDiag(r.ndvi,'produtor',fid)}</div><div style="font-size:12px;color:#8B9A8F">${ndmiDiag(r.ndmi,'produtor')}</div><div style="font-size:12px;color:#8B9A8F">${r.area_ha} ha</div>`:`<div style="font:700 13px 'DM Sans';margin-bottom:6px">${r.name}</div><div style="font-size:12px"><span style="color:#8B9A8F">NDVI</span> <span style="font:700 12px 'Space Mono';color:${ndviColor(r.ndvi,fid)}">${r.ndvi!==null?r.ndvi.toFixed(3):'N/A'} ${ndviDiag(r.ndvi,'consultor',fid)}</span></div><div style="font-size:12px"><span style="color:#8B9A8F">NDMI</span> <span style="font:700 12px 'Space Mono'">${r.ndmi!==null?r.ndmi.toFixed(3):'N/A'}</span></div><div style="font-size:12px"><span style="color:#8B9A8F">Área</span> <span style="font:700 12px 'Space Mono'">${r.area_ha} ha</span></div>`;poly.bindPopup(popup,{className:'custom-popup',maxWidth:260});const ctr=poly.getBounds().getCenter();const lt=currentMode==='produtor'?`<div style="font:700 10px 'DM Sans';color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.9);text-align:center">${r.name}<br>${ndviDiag(r.ndvi,'produtor',fid)}</div>`:`<div style="font:700 10px 'Space Mono';color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.9);text-align:center">${r.id}<br>${val!==null?val.toFixed(2):'—'}</div>`;const m=L.marker(ctr,{icon:L.divIcon({className:'',html:lt,iconSize:[70,30],iconAnchor:[35,15]}),interactive:false}).addTo(map);polygonLayers.push(poly);markerLayers.push(m);bounds.push(...r.coords)});if(bounds.length)map.fitBounds(L.latLngBounds(bounds.map(c=>L.latLng(c[0],c[1]))),{padding:[30,30]});if(photoOverlay){photoOverlay.bringToBack();tileLayer.bringToBack()}}
+
+function clearMap(){polygonLayers.forEach(l=>map.removeLayer(l));polygonLayers=[];markerLayers.forEach(l=>map.removeLayer(l));markerLayers=[]}
+
+function renderPanelContent(results){const fid=document.getElementById('fazendaSelect').value;const sorted=[...results].sort((a,b)=>(a.ndvi||0)-(b.ndvi||0));const valid=results.filter(r=>r.ndvi!==null);const avg=valid.length>0?valid.reduce((s,r)=>s+r.ndvi,0)/valid.length:null;document.getElementById('panelTitle').textContent=currentMode==='produtor'?`${ndviDiag(avg,'produtor',fid)} — Média`:`NDVI médio: ${avg!==null?avg.toFixed(3):'N/A'}`;document.getElementById('panelContent').innerHTML=sorted.map(r=>{const cb=`<div style="margin-top:4px"><button class="btn btn-gold btn-sm" onclick="event.stopPropagation();openCalibModal('${r.id}')" style="font-size:10px;padding:3px 8px">🎯 Calibrar</button></div>`;return currentMode==='produtor'?`<div class="piq-card"><div class="piq-dot" style="background:${ndviColor(r.ndvi,fid)}"></div><div><div class="piq-name">${r.name}</div><div class="piq-detail">${r.area_ha} ha · ${ndmiDiag(r.ndmi,'produtor')}</div>${cb}</div><div class="piq-ndvi" style="color:${ndviColor(r.ndvi,fid)};font-size:13px">${ndviDiag(r.ndvi,'produtor',fid)}</div></div>`:`<div class="piq-card"><div class="piq-dot" style="background:${ndviColor(r.ndvi,fid)}"></div><div><div class="piq-name">${r.name}</div><div class="piq-detail">${r.area_ha} ha · ${ndviDiag(r.ndvi,'consultor',fid)} · NDMI: ${r.ndmi!==null?r.ndmi.toFixed(3):'N/A'}</div>${cb}</div><div class="piq-ndvi" style="color:${ndviColor(r.ndvi,fid)}">${r.ndvi!==null?r.ndvi.toFixed(2):'—'}</div></div>`}).join('')}
+
+function togglePanel(){document.getElementById('infoPanel').classList.toggle('collapsed');document.getElementById('panelArrow').textContent=document.getElementById('infoPanel').classList.contains('collapsed')?'▲':'▼'}
+
+function renderAlerts(fazName,results){const fid=document.getElementById('fazendaSelect').value;const t=getCalibThresholds(fid);const alerts=[];results.forEach(r=>{if(r.ndvi===null)return;if(r.ndvi<t.rapado)alerts.push({critical:true,piq:r.name,msg:currentMode==='produtor'?'Pasto morto! Vedar e avaliar reforma.':`NDVI ${r.ndvi.toFixed(3)} — degradação severa.`});else if(r.ndvi<t.fraco)alerts.push({critical:false,piq:r.name,msg:currentMode==='produtor'?'Pasto fraco. Vedar e adubar.':`NDVI ${r.ndvi.toFixed(3)} — estresse.`});if(r.timeseries&&r.timeseries.length>=3){const rc=r.timeseries[r.timeseries.length-1]?.ndvi,ol=r.timeseries[r.timeseries.length-3]?.ndvi;if(rc&&ol&&(ol-rc)/ol>.15)alerts.push({critical:false,piq:r.name,msg:currentMode==='produtor'?'Pasto caindo rápido!':`Queda >15% (${ol.toFixed(3)}→${rc.toFixed(3)})`})}});const list=document.getElementById('alertList');if(!alerts.length){list.innerHTML=`<div style="text-align:center;padding:30px"><div style="font-size:32px">✅</div><div style="font-size:14px;font-weight:600;color:var(--green-light)">Nenhum alerta — ${fazName}</div></div>`;return}list.innerHTML=`<div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">${fazName} — ${alerts.length} alerta(s)</div>`+alerts.map(a=>`<div class="alert-card ${a.critical?'critical':'warn'}"><div class="alert-title">${a.critical?'🔴':'🟡'} ${a.piq}</div><div class="alert-body">${a.msg}</div></div>`).join('')}
+
+function renderHistory(){const fid=document.getElementById('histFazendaSelect').value;if(!fid)return;const hist=DB.history[fid]||[],faz=DB.fazendas[fid];if(!faz||!hist.length){document.getElementById('histTable').innerHTML='<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px">Sem histórico.</div>';return}const lr=hist[hist.length-1],aTS={};lr.piquetes.forEach(p=>{if(p.timeseries)p.timeseries.forEach(ts=>{if(!aTS[ts.date])aTS[ts.date]={date:ts.date,values:[]};if(ts.ndvi!==null)aTS[ts.date].values.push(ts.ndvi)})});const sd=Object.keys(aTS).sort();const abd=sd.map(d=>({date:d,avg:aTS[d].values.length>0?aTS[d].values.reduce((s,v)=>s+v,0)/aTS[d].values.length:null})).filter(d=>d.avg!==null);const c1=document.getElementById('histChart').getContext('2d');if(histChart)histChart.destroy();histChart=new Chart(c1,{type:'line',data:{labels:abd.map(d=>new Date(d.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})),datasets:[{label:'NDVI',data:abd.map(d=>d.avg),borderColor:'#22C55E',backgroundColor:'rgba(34,197,94,0.1)',borderWidth:2,pointRadius:4,pointBackgroundColor:'#22C55E',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0.2,max:1,grid:{color:'rgba(42,56,48,0.5)'},ticks:{color:'#5A6B5E',font:{family:'Space Mono',size:10}}},x:{grid:{display:false},ticks:{color:'#5A6B5E',font:{family:'Space Mono',size:9},maxRotation:45}}}}});const c2=document.getElementById('barChart').getContext('2d');if(barChart)barChart.destroy();const pd=lr.piquetes.filter(p=>p.ndvi!==null).sort((a,b)=>a.ndvi-b.ndvi);barChart=new Chart(c2,{type:'bar',data:{labels:pd.map(p=>currentMode==='produtor'?p.name:p.id),datasets:[{data:pd.map(p=>p.ndvi),backgroundColor:pd.map(p=>ndviColor(p.ndvi,fid)+'AA'),borderColor:pd.map(p=>ndviColor(p.ndvi,fid)),borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:1,grid:{color:'rgba(42,56,48,0.5)'},ticks:{color:'#5A6B5E',font:{family:'Space Mono',size:10}}},x:{grid:{display:false},ticks:{color:'#8B9A8F',font:{family:'DM Sans',size:10}}}}}});document.getElementById('histTable').innerHTML=`<div class="chart-box"><h3>Leituras</h3><div style="font-size:11px;color:var(--text-dim)">${hist.map(h=>{const d=new Date(h.date);const avg=h.piquetes.filter(p=>p.ndvi).reduce((s,p)=>s+p.ndvi,0)/h.piquetes.filter(p=>p.ndvi).length;return`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span><span style="font-family:'Space Mono';color:${ndviColor(avg,fid)}">${avg.toFixed(3)}</span></div>`}).reverse().join('')}</div></div>`}
+
+function showStatus(msg,type){const bar=document.getElementById('statusBar');bar.innerHTML=`<div class="status-bar ${type}">${type==='loading'?'<span class="spinner"></span>':''} ${msg}</div>`;if(type==='success')setTimeout(()=>{bar.innerHTML=''},4000)}
+
+document.querySelectorAll('.tab').forEach(tab=>{tab.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));tab.classList.add('active');document.getElementById('screen-'+tab.dataset.screen).classList.add('active');if(tab.dataset.screen==='mapa')setTimeout(()=>map.invalidateSize(),100);if(tab.dataset.screen==='historico')renderHistory()})});
+document.querySelectorAll('.layer-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.layer-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentLayer=btn.dataset.layer;onFazendaChange()})});
+document.querySelectorAll('#modeToggle .mode-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('#modeToggle .mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentMode=btn.dataset.mode;onFazendaChange()})});
+
+// ============================================================
+// PLANET TILE LAYER
+// ============================================================
+let planetLayer = null;
+
+function savePlanetKey() {
+  const key = document.getElementById('planetApiKey').value.trim();
+  if (!key) { showStatus('Cole a API Key do Planet', 'error'); return; }
+  DB.planetKey = key; saveDB();
+  showStatus('Planet API Key salva!', 'success');
+  loadPlanetMosaics();
+}
+
+function loadPlanetKey() {
+  if (DB.planetKey) {
+    document.getElementById('planetApiKey').value = '••••••••••••••••••••';
+    loadPlanetMosaics();
+  }
+}
+
+async function loadPlanetMosaics() {
+  const key = DB.planetKey; if (!key) return;
+  const sel = document.getElementById('planetMosaicSelect');
+  sel.innerHTML = '<option value="">Carregando mosaics...</option>';
+  try {
+    // Fetch available mosaics from Planet API
+    const res = await fetch('https://api.planet.com/basemaps/v1/mosaics?_page_size=50', {
+      headers: { 'Authorization': 'api-key ' + key }
+    });
+    if (!res.ok) throw new Error('Erro ao buscar mosaics');
+    const data = await res.json();
+    const mosaics = (data.mosaics || [])
+      .filter(m => m.name && (m.name.includes('visual') || m.name.includes('medres')))
+      .sort((a, b) => b.name.localeCompare(a.name))
+      .slice(0, 24);
+    if (!mosaics.length) {
+      // Fallback: build mosaic names manually for last 12 months
+      const opts = [];
+      const now = new Date();
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const name = `planet_medres_normalized_analytic_${y}-${m}_mosaic`;
+        opts.push(`<option value="${name}">${y}-${m}</option>`);
+      }
+      sel.innerHTML = opts.join('');
+    } else {
+      sel.innerHTML = mosaics.map(m => {
+        const label = m.name.replace('planet_medres_normalized_analytic_', '').replace('_mosaic', '').replace('global_monthly_', '');
+        return `<option value="${m.name}">${label}</option>`;
+      }).join('');
+    }
+  } catch (err) {
+    // Fallback to manual names
+    const opts = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const name = `planet_medres_normalized_analytic_${y}-${m}_mosaic`;
+      opts.push(`<option value="${name}">${y}-${m}</option>`);
+    }
+    sel.innerHTML = opts.join('');
+  }
+}
+
+function loadPlanetLayer() {
+  const key = DB.planetKey;
+  if (!key) { showStatus('Configure a Planet API Key na aba Config', 'error'); return; }
+  const mosaic = document.getElementById('planetMosaicSelect').value;
+  if (!mosaic) { showStatus('Selecione um mosaic', 'error'); return; }
+  if (planetLayer) { map.removeLayer(planetLayer); planetLayer = null; }
+  // Remove ESRI base tile so Planet shows clearly
+  if (tileLayer) map.removeLayer(tileLayer);
+  // Add Planet XYZ tile
+  const tileUrl = `https://tiles.planet.com/basemaps/v1/planet-tiles/${mosaic}/gmap/{z}/{x}/{y}.png?api_key=${key}`;
+  planetLayer = L.tileLayer(tileUrl, { maxZoom: 19, opacity: 1, zIndex: 100 }).addTo(map);
+  polygonLayers.forEach(p => p.bringToFront());
+  markerLayers.forEach(m => m._icon && (m._icon.style.zIndex = 1000));
+  document.getElementById('btnRemovePlanet').style.display = 'flex';
+  const label = mosaic.replace('planet_medres_normalized_analytic_','').replace('global_monthly_','').replace('_mosaic','');
+  showStatus(`🌍 Planet: ${label}`, 'success');
+}
+
+function removePlanetLayer() {
+  if (planetLayer) { map.removeLayer(planetLayer); planetLayer = null; }
+  // Restore ESRI base tile
+  if (tileLayer) tileLayer.addTo(map);
+  polygonLayers.forEach(p => p.bringToFront());
+  document.getElementById('btnRemovePlanet').style.display = 'none';
+  showStatus('Planet removido', 'success');
+}
+
+function init(){loadCredentials();loadPlanetKey();renderFazendaList();updateFazendaSelects();setupKMLDrop();initMap();renderCalibInfo()}
+init();
+</script>
+</body>
+</html>
