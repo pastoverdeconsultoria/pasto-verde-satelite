@@ -384,15 +384,15 @@ async function loadPlanetMosaics() {
 
 function loadPlanetLayer() {
   const key = DB.planetKey;
-  if (!key) { showStatus('Configure a Planet API Key na aba Config', 'error'); return; }
+  if (!key && !DB.proxyUrl) { showStatus('Configure a Planet API Key na aba Config', 'error'); return; }
   const mosaic = document.getElementById('planetMosaicSelect').value;
   if (!mosaic) { showStatus('Selecione um mosaic', 'error'); return; }
   if (planetLayer) { map.removeLayer(planetLayer); planetLayer = null; }
-  // Remove ESRI base tile so Planet shows clearly
   if (tileLayer) map.removeLayer(tileLayer);
-  // Add Planet XYZ tile
-  const tileUrl = `https://tiles.planet.com/basemaps/v1/planet-tiles/${mosaic}/gmap/{z}/{x}/{y}.png?api_key=${key}`;
-  planetLayer = L.tileLayer(tileUrl, { maxZoom: 19, opacity: 1, zIndex: 100 }).addTo(map);
+  // Use proxy to avoid CORS
+  const proxyBase = 'https://pasto-proxy.onrender.com';
+  const tileUrl = `${proxyBase}/tile/${mosaic}/{z}/{x}/{y}`;
+  planetLayer = L.tileLayer(tileUrl, { maxZoom: 19, opacity: 1, zIndex: 100, crossOrigin: true }).addTo(map);
   polygonLayers.forEach(p => p.bringToFront());
   markerLayers.forEach(m => m._icon && (m._icon.style.zIndex = 1000));
   document.getElementById('btnRemovePlanet').style.display = 'flex';
